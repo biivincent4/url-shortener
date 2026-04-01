@@ -1,4 +1,4 @@
-using 'main.bicep'
+using '../main.bicep'
 
 param environmentName = 'prod'
 param acrName = 'acrurlshortenerprod'

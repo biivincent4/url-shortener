@@ -1,0 +1,41 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths: [infra/**]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: azure/arm-deploy@v2
+        with:
+          subscriptionId: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.AZURE_RG }}
+          template: infra/main.bicep
+          parameters: >
+            infra/parameters/prod.bicepparam
+            databaseUrl=${{ secrets.DATABASE_URL }}
+            secretKey=${{ secrets.JWT_SECRET }}
+            googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
+            googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            xClientId=${{ secrets.X_CLIENT_ID }}
+            xClientSecret=${{ secrets.X_CLIENT_SECRET }}

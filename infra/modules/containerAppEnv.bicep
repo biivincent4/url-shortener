@@ -17,3 +17,6 @@ output envId string = env.id
 
 @description('Container Apps Environment name')
 output envName string = env.name
+
+@description('Default domain for the Container Apps Environment')
+output defaultDomain string = env.properties.defaultDomain

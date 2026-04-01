@@ -79,7 +79,7 @@ module app 'modules/containerApp.bicep' = {
     xClientId: xClientId
     xClientSecret: xClientSecret
     frontendUrl: 'https://${swa.outputs.defaultHostname}'
-    backendUrl: 'https://${containerAppName}.${location}.azurecontainerapps.io'
+    backendUrl: 'https://${containerAppName}.${cae.outputs.defaultDomain}'
   }
 }
 

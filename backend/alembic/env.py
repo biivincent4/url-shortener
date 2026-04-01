@@ -20,6 +20,9 @@ database_url = os.environ.get(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/urlshortener"
 )
 
+# asyncpg uses "ssl" instead of the libpq/psycopg2 "sslmode" parameter.
+database_url = database_url.replace("sslmode=", "ssl=")
+
 
 def run_migrations_offline():
     context.configure(

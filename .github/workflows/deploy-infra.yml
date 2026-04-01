@@ -32,7 +32,12 @@ jobs:
           resourceGroupName: ${{ env.AZURE_RG }}
           template: infra/main.bicep
           parameters: >
-            infra/parameters/prod.bicepparam
+            environmentName=dev
+            acrName=acrurlshortenerdev
+            containerAppName=ca-url-shortener-api
+            containerAppEnvName=cae-url-shortener
+            swaName=swa-url-shortener
+            repositoryUrl=https://github.com/${{ github.repository }}
             databaseUrl=${{ secrets.DATABASE_URL }}
             secretKey=${{ secrets.JWT_SECRET }}
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}

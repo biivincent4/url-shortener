@@ -111,20 +111,20 @@ Write-Host "  Assigned Contributor role on $ResourceGroupName" -ForegroundColor 
 $audiences = @("api://AzureADTokenExchange")
 
 # Credential for main branch pushes
-$credNameBranch = "github-main-branch"
+$credNameBranch = "github-master-branch"
 $existingCred = az ad app federated-credential list --id $objectId --query "[?name=='$credNameBranch']" 2>$null | ConvertFrom-Json
 if (-not $existingCred -or $existingCred.Count -eq 0) {
     $credBody = @{
         name        = $credNameBranch
         issuer      = "https://token.actions.githubusercontent.com"
-        subject     = "repo:${repoFullName}:ref:refs/heads/main"
+        subject     = "repo:${repoFullName}:ref:refs/heads/master"
         audiences   = $audiences
-        description = "GitHub Actions - main branch"
+        description = "GitHub Actions - master branch"
     } | ConvertTo-Json -Compress
     $credBody | az ad app federated-credential create --id $objectId --parameters "@-" --output none
-    Write-Host "  Created federated credential: main branch" -ForegroundColor Green
+    Write-Host "  Created federated credential: master branch" -ForegroundColor Green
 } else {
-    Write-Host "  Federated credential already exists: main branch" -ForegroundColor Green
+    Write-Host "  Federated credential already exists: master branch" -ForegroundColor Green
 }
 
 # Credential for pull requests

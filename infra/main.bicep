@@ -16,6 +16,9 @@ param containerAppEnvName string = 'cae-url-shortener'
 @description('Static Web App name')
 param swaName string = 'swa-url-shortener'
 
+@description('Location for Static Web App (not all regions supported)')
+param swaLocation string = 'eastus2'
+
 @description('GitHub repository URL')
 param repositoryUrl string
 
@@ -94,7 +97,7 @@ module swa 'modules/staticWebApp.bicep' = {
   name: 'swa-${environmentName}'
   params: {
     name: swaName
-    location: location
+    location: swaLocation
     repositoryUrl: repositoryUrl
   }
 }

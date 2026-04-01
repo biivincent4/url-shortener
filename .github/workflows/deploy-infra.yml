@@ -33,7 +33,7 @@ jobs:
           template: infra/main.bicep
           parameters: >
             environmentName=dev
-            acrName=acrurlshortenerdev
+            acrName=${{ secrets.ACR_NAME }}
             containerAppName=ca-url-shortener-api
             containerAppEnvName=cae-url-shortener
             swaName=swa-url-shortener

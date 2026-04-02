@@ -15,8 +15,8 @@ export default function Navbar() {
                 borderBottom: "1px solid var(--border)",
             }}
         >
-            <Link to="/" style={{ fontWeight: 700, fontSize: "1.2rem", color: "var(--text)" }}>
-                URL Shortener
+            <Link to="/" style={{ fontWeight: 700, fontSize: "1.2rem", color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: "1.4rem" }}>🔗</span> urls.trie.africa
             </Link>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 {user ? (

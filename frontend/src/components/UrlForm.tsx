@@ -91,13 +91,25 @@ export default function UrlForm({ onCreated }: { onCreated?: () => void }) {
             )}
 
             {result && (
-                <div className="card" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
-                    <a href={result.short_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: "1.1rem" }}>
-                        {result.short_url}
-                    </a>
-                    <button className="btn-outline" onClick={copyToClipboard}>
-                        {copied ? "Copied!" : "Copy"}
-                    </button>
+                <div className="card" style={{ marginTop: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <a href={result.short_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: "1.1rem" }}>
+                            {result.short_url}
+                        </a>
+                        <button className="btn-outline" onClick={copyToClipboard}>
+                            {copied ? "Copied!" : "Copy"}
+                        </button>
+                    </div>
+                    <div style={{ marginTop: 12, textAlign: "center" }}>
+                        <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(result.short_url)}`}
+                            alt="QR Code"
+                            width={120}
+                            height={120}
+                            style={{ borderRadius: 8, background: "#fff", padding: 6 }}
+                        />
+                        <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: 4 }}>Scan to open link</p>
+                    </div>
                 </div>
             )}
         </div>

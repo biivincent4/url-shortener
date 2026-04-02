@@ -68,6 +68,13 @@ export default function UrlList({
                         </p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 16 }}>
+                        <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(u.short_url)}`}
+                            alt="QR"
+                            width={40}
+                            height={40}
+                            style={{ borderRadius: 4, background: "#fff", padding: 2 }}
+                        />
                         <Link to={`/stats/${u.short_code}`} style={{ fontSize: "0.9rem" }}>
                             {u.total_clicks} clicks
                         </Link>

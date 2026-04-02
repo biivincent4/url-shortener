@@ -59,7 +59,9 @@ app.include_router(urls.router)
 
 # Serve frontend static assets and SPA fallback
 if STATIC_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="static-assets")
+    app.mount(
+        "/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="static-assets"
+    )
 
     @app.get("/{path:path}")
     async def spa_fallback(path: str):

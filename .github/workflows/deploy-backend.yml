@@ -3,7 +3,7 @@ name: Deploy Backend
 on:
   push:
     branches: [master]
-    paths: [backend/**]
+    paths: [backend/**, frontend/**]
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
         run: |
           az acr login --name $ACR_NAME
           IMAGE="${ACR_NAME}.azurecr.io/url-shortener-api:${{ github.sha }}"
-          docker build -t "$IMAGE" ./backend
+          docker build -t "$IMAGE" --build-arg VITE_API_URL="" -f backend/Dockerfile .
           docker push "$IMAGE"
 
       - name: Deploy to Container App

@@ -1,8 +1,9 @@
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.utils import generate_short_code, hash_ip, validate_custom_code
 router = APIRouter(tags=["urls"])
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 
 
 @router.post("/api/shorten", response_model=ShortenResponse)
@@ -128,6 +130,10 @@ async def redirect_url(
     result = await db.execute(select(URL).where(URL.short_code == short_code))
     url_entry = result.scalar_one_or_none()
     if not url_entry:
+        # Not a short code — serve SPA for client-side routing (e.g. /login, /dashboard)
+        index = STATIC_DIR / "index.html"
+        if index.exists():
+            return FileResponse(index)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Short URL not found"
         )

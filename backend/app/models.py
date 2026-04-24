@@ -1,13 +1,41 @@
 import datetime
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+url_tags = Table(
+    "url_tags",
+    Base.metadata,
+    Column(
+        "url_id",
+        UUID(as_uuid=True),
+        ForeignKey("urls.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "tag_id",
+        UUID(as_uuid=True),
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 
 class User(Base):
@@ -56,6 +84,7 @@ class URL(Base):
 
     user: Mapped[User | None] = relationship(back_populates="urls")
     click_events: Mapped[list["ClickEvent"]] = relationship(back_populates="url")
+    tags: Mapped[list["Tag"]] = relationship(secondary=url_tags, back_populates="urls")
 
 
 class ClickEvent(Base):
@@ -73,5 +102,30 @@ class ClickEvent(Base):
     referrer: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    device_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    os_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    browser: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     url: Mapped[URL] = relationship(back_populates="click_events")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+    __table_args__ = (UniqueConstraint("name", "user_id", name="uq_tag_name_user"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped["User"] = relationship()
+    urls: Mapped[list["URL"]] = relationship(secondary=url_tags, back_populates="tags")

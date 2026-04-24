@@ -10,7 +10,32 @@ interface StatsData {
     unique_visitors: number;
     clicks_over_time: { date: string; clicks: number }[];
     top_referrers: { referrer: string; clicks: number }[];
-    recent_clicks: { clicked_at: string; referrer: string | null; user_agent: string | null }[];
+    top_countries: { country: string; clicks: number }[];
+    top_cities: { city: string; clicks: number }[];
+    devices: { device_type: string; clicks: number }[];
+    operating_systems: { os_name: string; clicks: number }[];
+    browsers: { browser: string; clicks: number }[];
+    recent_clicks: { clicked_at: string; referrer: string | null; user_agent: string | null; country: string | null; city: string | null; device_type: string | null; os_name: string | null; browser: string | null }[];
+}
+
+function BarList({ items, labelKey, valueKey }: { items: Record<string, unknown>[]; labelKey: string; valueKey: string }) {
+    if (!items || items.length === 0) return <p style={{ color: "var(--text-muted)" }}>No data yet.</p>;
+    const maxVal = Math.max(...items.map((i) => i[valueKey] as number));
+    return (
+        <div>
+            {items.map((item, idx) => (
+                <div key={idx} style={{ marginBottom: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: 2 }}>
+                        <span>{(item[labelKey] as string) || "Unknown"}</span>
+                        <span style={{ fontWeight: 600 }}>{item[valueKey] as number}</span>
+                    </div>
+                    <div style={{ height: 6, background: "var(--border)", borderRadius: 3 }}>
+                        <div style={{ height: 6, background: "var(--primary)", borderRadius: 3, width: `${maxVal > 0 ? ((item[valueKey] as number) / maxVal) * 100 : 0}%` }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 }
 
 export default function Stats() {
@@ -102,6 +127,32 @@ export default function Stats() {
                 </div>
             )}
 
+            {/* Geographic & Device Analytics */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                <div className="card">
+                    <h3 style={{ marginBottom: 12 }}>Top Countries</h3>
+                    <BarList items={stats.top_countries as unknown as Record<string, unknown>[]} labelKey="country" valueKey="clicks" />
+                </div>
+                <div className="card">
+                    <h3 style={{ marginBottom: 12 }}>Top Cities</h3>
+                    <BarList items={stats.top_cities as unknown as Record<string, unknown>[]} labelKey="city" valueKey="clicks" />
+                </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
+                <div className="card">
+                    <h3 style={{ marginBottom: 12 }}>Devices</h3>
+                    <BarList items={stats.devices as unknown as Record<string, unknown>[]} labelKey="device_type" valueKey="clicks" />
+                </div>
+                <div className="card">
+                    <h3 style={{ marginBottom: 12 }}>Operating Systems</h3>
+                    <BarList items={stats.operating_systems as unknown as Record<string, unknown>[]} labelKey="os_name" valueKey="clicks" />
+                </div>
+                <div className="card">
+                    <h3 style={{ marginBottom: 12 }}>Browsers</h3>
+                    <BarList items={stats.browsers as unknown as Record<string, unknown>[]} labelKey="browser" valueKey="clicks" />
+                </div>
+            </div>
+
             <div className="card">
                 <h3 style={{ marginBottom: 12 }}>Recent Clicks</h3>
                 {stats.recent_clicks.length === 0 ? (
@@ -112,8 +163,10 @@ export default function Stats() {
                             <thead>
                                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
                                     <th style={{ textAlign: "left", padding: 8 }}>Time</th>
+                                    <th style={{ textAlign: "left", padding: 8 }}>Country</th>
+                                    <th style={{ textAlign: "left", padding: 8 }}>Device</th>
+                                    <th style={{ textAlign: "left", padding: 8 }}>Browser</th>
                                     <th style={{ textAlign: "left", padding: 8 }}>Referrer</th>
-                                    <th style={{ textAlign: "left", padding: 8 }}>User Agent</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -122,11 +175,11 @@ export default function Stats() {
                                         <td style={{ padding: 8, whiteSpace: "nowrap" }}>
                                             {new Date(c.clicked_at).toLocaleString()}
                                         </td>
+                                        <td style={{ padding: 8 }}>{c.country || "-"}{c.city ? `, ${c.city}` : ""}</td>
+                                        <td style={{ padding: 8 }}>{c.device_type || "-"}{c.os_name ? ` / ${c.os_name}` : ""}</td>
+                                        <td style={{ padding: 8 }}>{c.browser || "-"}</td>
                                         <td style={{ padding: 8, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
                                             {c.referrer || "-"}
-                                        </td>
-                                        <td style={{ padding: 8, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {c.user_agent || "-"}
                                         </td>
                                     </tr>
                                 ))}

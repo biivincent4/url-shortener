@@ -7,7 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import ClickEvent, URL, User
-from app.schemas import ClickDetail, ClicksOverTime, TopReferrer, UrlStats
+from app.schemas import (
+    BrowserStats,
+    CityStats,
+    ClickDetail,
+    ClicksOverTime,
+    CountryStats,
+    DeviceStats,
+    OsStats,
+    TopReferrer,
+    UrlStats,
+)
 
 router = APIRouter(prefix="/api/urls", tags=["analytics"])
 
@@ -88,8 +98,75 @@ async def get_url_stats(
             clicked_at=c.clicked_at,
             referrer=c.referrer,
             user_agent=c.user_agent,
+            country=c.country,
+            city=c.city,
+            device_type=c.device_type,
+            os_name=c.os_name,
+            browser=c.browser,
         )
         for c in recent_result.scalars().all()
+    ]
+
+    # Top countries
+    country_result = await db.execute(
+        select(ClickEvent.country, func.count().label("count"))
+        .where(ClickEvent.url_id == url_entry.id, ClickEvent.country.is_not(None))
+        .group_by(ClickEvent.country)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    top_countries = [
+        CountryStats(country=row.country, clicks=row.count)
+        for row in country_result.all()
+    ]
+
+    # Top cities
+    city_result = await db.execute(
+        select(ClickEvent.city, func.count().label("count"))
+        .where(ClickEvent.url_id == url_entry.id, ClickEvent.city.is_not(None))
+        .group_by(ClickEvent.city)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    top_cities = [
+        CityStats(city=row.city, clicks=row.count) for row in city_result.all()
+    ]
+
+    # Device types
+    device_result = await db.execute(
+        select(ClickEvent.device_type, func.count().label("count"))
+        .where(ClickEvent.url_id == url_entry.id, ClickEvent.device_type.is_not(None))
+        .group_by(ClickEvent.device_type)
+        .order_by(func.count().desc())
+    )
+    devices = [
+        DeviceStats(device_type=row.device_type, clicks=row.count)
+        for row in device_result.all()
+    ]
+
+    # Operating systems
+    os_result = await db.execute(
+        select(ClickEvent.os_name, func.count().label("count"))
+        .where(ClickEvent.url_id == url_entry.id, ClickEvent.os_name.is_not(None))
+        .group_by(ClickEvent.os_name)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    operating_systems = [
+        OsStats(os_name=row.os_name, clicks=row.count) for row in os_result.all()
+    ]
+
+    # Browsers
+    browser_result = await db.execute(
+        select(ClickEvent.browser, func.count().label("count"))
+        .where(ClickEvent.url_id == url_entry.id, ClickEvent.browser.is_not(None))
+        .group_by(ClickEvent.browser)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    browsers = [
+        BrowserStats(browser=row.browser, clicks=row.count)
+        for row in browser_result.all()
     ]
 
     return UrlStats(
@@ -100,4 +177,9 @@ async def get_url_stats(
         clicks_over_time=clicks_over_time,
         top_referrers=top_referrers,
         recent_clicks=recent_clicks,
+        top_countries=top_countries,
+        top_cities=top_cities,
+        devices=devices,
+        operating_systems=operating_systems,
+        browsers=browsers,
     )

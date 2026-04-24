@@ -9,9 +9,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_optional_user, limiter
-from app.models import ClickEvent, URL, User
-from app.schemas import ShortenRequest, ShortenResponse, UrlListItem
-from app.utils import generate_short_code, hash_ip, validate_custom_code
+from app.models import ClickEvent, Tag, URL, User
+from app.schemas import (
+    BulkShortenRequest,
+    BulkShortenResponse,
+    BulkResultItem,
+    ShortenRequest,
+    ShortenResponse,
+    TagBrief,
+    UpdateUrlRequest,
+    UrlListItem,
+)
+from app.utils import (
+    generate_short_code,
+    hash_ip,
+    lookup_geo,
+    parse_user_agent,
+    validate_custom_code,
+)
 
 router = APIRouter(tags=["urls"])
 
@@ -66,6 +81,15 @@ async def shorten_url(
     await db.commit()
     await db.refresh(url_entry)
 
+    # Attach tags if provided and user is authenticated
+    if body.tag_ids and user:
+        tag_result = await db.execute(
+            select(Tag).where(Tag.id.in_(body.tag_ids), Tag.user_id == user.id)
+        )
+        for tag in tag_result.scalars().all():
+            url_entry.tags.append(tag)
+        await db.commit()
+
     return ShortenResponse(
         short_code=url_entry.short_code,
         short_url=f"{BACKEND_URL}/{url_entry.short_code}",
@@ -77,19 +101,22 @@ async def shorten_url(
 
 @router.get("/api/urls", response_model=list[UrlListItem])
 async def list_urls(
+    tag: str | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(URL).where(URL.user_id == user.id).order_by(URL.created_at.desc())
-    )
-    urls = result.scalars().all()
+    query = select(URL).where(URL.user_id == user.id).order_by(URL.created_at.desc())
+    if tag:
+        query = query.join(URL.tags).where(Tag.name == tag)
+    result = await db.execute(query)
+    urls = result.scalars().unique().all()
     items = []
     for u in urls:
         click_result = await db.execute(
             select(ClickEvent).where(ClickEvent.url_id == u.id)
         )
         total_clicks = len(click_result.scalars().all())
+        await db.refresh(u, ["tags"])
         items.append(
             UrlListItem(
                 id=u.id,
@@ -100,6 +127,7 @@ async def list_urls(
                 expires_at=u.expires_at,
                 is_active=u.is_active,
                 total_clicks=total_clicks,
+                tags=[TagBrief(id=t.id, name=t.name, color=t.color) for t in u.tags],
             )
         )
     return items
@@ -119,6 +147,92 @@ async def deactivate_url(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     url_entry.is_active = False
     await db.commit()
+
+
+@router.patch("/api/urls/{short_code}", response_model=ShortenResponse)
+async def update_url(
+    short_code: str,
+    body: UpdateUrlRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(URL).where(URL.short_code == short_code, URL.user_id == user.id)
+    )
+    url_entry = result.scalar_one_or_none()
+    if not url_entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    url_entry.original_url = str(body.url)
+    await db.commit()
+    await db.refresh(url_entry)
+    return ShortenResponse(
+        short_code=url_entry.short_code,
+        short_url=f"{BACKEND_URL}/{url_entry.short_code}",
+        original_url=url_entry.original_url,
+        created_at=url_entry.created_at,
+        expires_at=url_entry.expires_at,
+    )
+
+
+@router.post("/api/shorten/bulk", response_model=BulkShortenResponse)
+@limiter.limit("5/minute")
+async def bulk_shorten(
+    request: Request,
+    body: BulkShortenRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    results = []
+    for i, item in enumerate(body.urls):
+        try:
+            if item.custom_code:
+                if not validate_custom_code(item.custom_code):
+                    results.append(BulkResultItem(index=i, error="Invalid custom code"))
+                    continue
+                existing = await db.execute(
+                    select(URL).where(URL.short_code == item.custom_code)
+                )
+                if existing.scalar_one_or_none():
+                    results.append(
+                        BulkResultItem(index=i, error="Custom code already taken")
+                    )
+                    continue
+                short_code = item.custom_code
+            else:
+                short_code = generate_short_code()
+
+            expires_at = None
+            if item.expires_in_hours:
+                expires_at = datetime.now(timezone.utc) + timedelta(
+                    hours=item.expires_in_hours
+                )
+
+            url_entry = URL(
+                short_code=short_code,
+                original_url=str(item.url),
+                user_id=user.id,
+                expires_at=expires_at,
+            )
+            db.add(url_entry)
+            await db.flush()
+            await db.refresh(url_entry)
+            results.append(
+                BulkResultItem(
+                    index=i,
+                    result=ShortenResponse(
+                        short_code=url_entry.short_code,
+                        short_url=f"{BACKEND_URL}/{url_entry.short_code}",
+                        original_url=url_entry.original_url,
+                        created_at=url_entry.created_at,
+                        expires_at=url_entry.expires_at,
+                    ),
+                )
+            )
+        except Exception:
+            results.append(BulkResultItem(index=i, error="Failed to create short URL"))
+
+    await db.commit()
+    return BulkShortenResponse(results=results)
 
 
 @router.get("/{short_code}")
@@ -146,13 +260,22 @@ async def redirect_url(
     if url_entry.expires_at and url_entry.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="URL has expired")
 
-    # Record click event asynchronously
+    # Record click event with geo and device data
     client_ip = request.client.host if request.client else ""
+    ua_string = request.headers.get("user-agent", "")[:512]
+    ua_data = parse_user_agent(ua_string)
+    geo_data = lookup_geo(client_ip) if client_ip else {"country": None, "city": None}
+
     click = ClickEvent(
         url_id=url_entry.id,
         referrer=request.headers.get("referer"),
-        user_agent=request.headers.get("user-agent", "")[:512],
+        user_agent=ua_string,
         ip_hash=hash_ip(client_ip) if client_ip else None,
+        country=geo_data["country"],
+        city=geo_data["city"],
+        device_type=ua_data["device_type"],
+        os_name=ua_data["os_name"],
+        browser=ua_data["browser"],
     )
     db.add(click)
     await db.commit()

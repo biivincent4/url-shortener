@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.dependencies import limiter
-from app.routers import auth, analytics, urls
+from app.routers import auth, analytics, tags, urls
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -55,6 +55,7 @@ async def root():
 # Routers — order matters: analytics must be before urls because urls has /{short_code} catch-all
 app.include_router(auth.router)
 app.include_router(analytics.router)
+app.include_router(tags.router)
 app.include_router(urls.router)
 
 # Serve frontend static assets and SPA fallback

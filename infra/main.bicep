@@ -22,9 +22,16 @@ param swaLocation string = 'eastus2'
 @description('GitHub repository URL')
 param repositoryUrl string
 
+@description('PostgreSQL server name (globally unique)')
+param postgresServerName string = 'pg-url-shortener-${environmentName}'
+
 @secure()
-@description('PostgreSQL connection string')
-param databaseUrl string
+@description('PostgreSQL admin password')
+param postgresAdminPassword string
+
+@secure()
+@description('PostgreSQL connection string (leave empty to auto-generate from PostgreSQL module)')
+param databaseUrl string = ''
 
 @secure()
 @description('JWT signing key')
@@ -45,6 +52,16 @@ param xClientId string
 @secure()
 @description('X (Twitter) OAuth Client Secret')
 param xClientSecret string
+
+// --- PostgreSQL Flexible Server ---
+module postgres 'modules/postgresql.bicep' = {
+  name: 'postgres-${environmentName}'
+  params: {
+    name: postgresServerName
+    location: location
+    adminPassword: postgresAdminPassword
+  }
+}
 
 // --- Container Registry ---
 module acr 'modules/containerRegistry.bicep' = {
@@ -72,7 +89,7 @@ module app 'modules/containerApp.bicep' = {
     location: location
     environmentId: cae.outputs.envId
     acrLoginServer: acr.outputs.loginServer
-    databaseUrl: databaseUrl
+    databaseUrl: !empty(databaseUrl) ? databaseUrl : postgres.outputs.connectionString
     secretKey: secretKey
     googleClientId: googleClientId
     googleClientSecret: googleClientSecret
@@ -111,3 +128,6 @@ output containerAppFqdn string = app.outputs.fqdn
 
 @description('Static Web App hostname')
 output swaHostname string = swa.outputs.defaultHostname
+
+@description('PostgreSQL server FQDN')
+output postgresFqdn string = postgres.outputs.fqdn

@@ -38,6 +38,7 @@ jobs:
             containerAppEnvName=cae-url-shortener
             swaName=swa-url-shortener
             repositoryUrl=https://github.com/${{ github.repository }}
+            postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
             databaseUrl=${{ secrets.DATABASE_URL }}
             secretKey=${{ secrets.JWT_SECRET }}
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
